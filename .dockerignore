@@ -1,0 +1,30 @@
+# Git and development files
+.git
+.gitignore
+*.md
+
+# Python cache and virtual environments
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+api_env/
+.venv/
+venv/
+
+# Data files
+data/
+*.jsonl
+
+# Development files
+.env
+run_server.py
+
+# Documentation
+README.md
+environment.md
+
+# Jupyter notebooks
+*.ipynb
+.ipynb_checkpoints
