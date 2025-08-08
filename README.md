@@ -1,87 +1,148 @@
 # Inventory Optimization Dashboard
 
-An end-to-end inventory analytics service using MongoDB Atlas and a FastAPI API deployed on Google Cloud Run, designed for Tableau Public consumption.
+An end-to-end inventory analytics service using MongoDB Atlas and FastAPI deployed on Google Cloud Run, designed for Tableau Public consumption.
 
 ## Overview
 
-- Data: Synthetic inventory datasets (products, daily demand, inventory levels, reorder recommendations)
-- DB: MongoDB Atlas
-- API: FastAPI + Uvicorn
-- Deploy: Google Cloud Run (containerized with Dockerfile)
-- Viz: Tableau Public via CSV endpoint
+This project provides a complete inventory optimization solution:
+- **Data**: Synthetic inventory datasets (products, daily demand, inventory levels, reorder recommendations)
+- **Database**: MongoDB Atlas with TLS-enabled secure connection
+- **API**: FastAPI service with multiple endpoints for analytics and Tableau integration
+- **Deployment**: Google Cloud Run (containerized) with Secret Manager for secure credential storage
+- **Visualization**: Tableau Public via CSV endpoint
 
-Data flow:
-MongoDB Atlas → FastAPI (Cloud Run) → Tableau Public (CSV)
+**Data Flow**: MongoDB Atlas → FastAPI (Cloud Run) → Tableau Public (CSV)
 
-## Repository Contents
+## Architecture
+
+```
+MongoDB Atlas (Cloud Database)
+       ↓
+FastAPI Service (Google Cloud Run)
+       ↓
+Tableau Public Dashboard
+```
+
+## Repository Structure
 
 - `main.py` — FastAPI service with endpoints for Tableau and analytics
 - `requirements.txt` — Python dependencies (FastAPI, pymongo, pandas, certifi, etc.)
-- `Dockerfile` — Container image for Cloud Run
-- `.dockerignore` — Slimmer builds (excludes venv, data, notebooks, etc.)
-- `deploy.sh` — One-command deployment to Cloud Run
-- `API.md` — Endpoint details and examples
-- `Init-JSON-data.ipynb` — Optional notebook to generate/import synthetic data
-- `data/` — Optional local assets (not used by the API)
+- `Dockerfile` — Container image configuration for Cloud Run deployment
+- `.dockerignore` — Optimized builds (excludes unnecessary files)
+- `deploy.sh` — Automated deployment script to Cloud Run
+- `API.md` — Detailed endpoint documentation and examples
+- `Init-JSON-data.ipynb` — Jupyter notebook for generating synthetic data
+- `.env.example` — Template for local environment configuration
+- `.gitignore` — Git ignore rules for security and clean repository
 
-Removed (no longer needed for Cloud Run): local start/stop scripts, ngrok, Railway, and other helper files.
+## Current Deployment Status
 
-## Local Development (optional)
+### Production Service (Google Cloud Run)
+- **Service URL**: https://inventory-api-610111719715.us-central1.run.app
+- **MongoDB Database**: `inventory_demo` on MongoDB Atlas cluster
+- **Authentication**: Secret Manager for secure credential storage
 
-1) Create a virtual environment and install deps
+### Quick Access Links
+- **Health Check**: https://inventory-api-610111719715.us-central1.run.app/health
+- **API Documentation**: https://inventory-api-610111719715.us-central1.run.app/docs
+- **Tableau CSV Endpoint**: https://inventory-api-610111719715.us-central1.run.app/tableau/fact_daily.csv
+
+### MongoDB Connection Details
+The service connects to MongoDB Atlas using:
+- **Cluster**: `cluster0.thisg0i.mongodb.net`
+- **Database**: `inventory_demo`
+- **Authentication**: Username/password stored in Google Secret Manager
+- **Connection**: TLS-enabled with certificate validation via `certifi`
+
+To find your MongoDB URI:
+1. **MongoDB Atlas Dashboard**: Log into your MongoDB Atlas account
+2. **Connect**: Click "Connect" on your cluster
+3. **Application**: Choose "Connect your application"  
+4. **Connection String**: Copy the connection string format:
+   ```
+   mongodb+srv://<username>:<password>@cluster0.thisg0i.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+   ```
+
+## Local Development Setup
+
+### Prerequisites
+- Python 3.8+ installed
+- MongoDB Atlas account and cluster
+- Git for version control
+
+### 1. Clone and Setup Environment
 
 ```bash
+# Clone repository
+git clone <repository-url>
+cd Inventory_Optimization_Dashboard
+
+# Create virtual environment
 python3 -m venv api_env
-source api_env/bin/activate
+source api_env/bin/activate  # On Windows: api_env\Scriptsctivate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-2) Configure environment (local only)
+### 2. Configure Environment Variables
 
-- Create `.env` with your MongoDB settings:
-  - `MONGO_URI` (SRV or standard URI)
-  - `MONGO_DB` (default: `inventory_demo`)
+```bash
+# Copy template and configure
+cp .env.example .env
+# Edit .env with your MongoDB connection details
+```
 
-Notes:
-- The app auto-loads env files in this order:
-  - If `ENV_FILE` is set, that file is loaded
-  - Else if `ENVIRONMENT=production` and `.env.production` exists, it’s loaded
-  - Else `.env` is loaded
+Required environment variables:
+- `MONGO_URI`: Your MongoDB Atlas connection string
+- `MONGO_DB`: Database name (default: `inventory_demo`)
 
-3) Run locally
+### 3. Run Development Server
 
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
-# Docs:    http://localhost:8000/docs
-# Health:  http://localhost:8000/health
-# Tableau: http://localhost:8000/tableau/fact_daily.csv
 ```
 
-## Deploy to Google Cloud Run (recommended)
+Access points:
+- **API Docs**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/health
+- **Tableau CSV**: http://localhost:8000/tableau/fact_daily.csv
 
-Prereqs:
-- gcloud CLI installed and logged in
-- Billing enabled on project
-- MongoDB Atlas project and database created
+## Production Deployment to Google Cloud Run
 
-One-command deploy (uses `deploy.sh`):
+### Prerequisites
+- Google Cloud CLI installed and authenticated
+- Google Cloud project with billing enabled
+- MongoDB Atlas cluster configured
+
+### Automated Deployment
 
 ```bash
+# One-command deployment
 ./deploy.sh
 ```
 
-What `deploy.sh` does:
-- Sets project ID to `thermal-setup-458600-q8` (update in the script if needed)
-- Enables Cloud Build, Cloud Run, Secret Manager
-- Creates/uses Secret Manager secret `MONGO_URI`
-- Builds the container with Cloud Build and deploys to Cloud Run (region `us-central1`)
-- Sets env vars `ENVIRONMENT=production`, `MONGO_DB=inventory_demo`
+The deployment script:
+- Sets up Google Cloud project (`thermal-setup-458600-q8`)
+- Enables required services (Cloud Build, Cloud Run, Secret Manager)
+- Creates MongoDB URI secret in Secret Manager
+- Builds container image with Cloud Build
+- Deploys to Cloud Run in `us-central1` region
+- Configures environment variables and secrets
 
-Manual deploy (alternative):
+### Manual Deployment (Alternative)
 
 ```bash
+# Set project
 gcloud config set project YOUR_PROJECT_ID
+
+# Enable services
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com secretmanager.googleapis.com
+
+# Create secret (first time only)
+printf "%s" "YOUR_MONGO_URI" | gcloud secrets create MONGO_URI --data-file=-
+
+# Build and deploy
 gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/inventory-api
 gcloud run deploy inventory-api \
   --image gcr.io/YOUR_PROJECT_ID/inventory-api \
@@ -92,92 +153,151 @@ gcloud run deploy inventory-api \
   --set-secrets MONGO_URI=MONGO_URI:latest
 ```
 
-After deploy, get the URL:
+### Update Secrets
 
 ```bash
-gcloud run services describe inventory-api --region us-central1 --format='value(status.url)'
-```
+# Update MongoDB URI in Secret Manager
+printf "%s" "NEW_MONGO_URI" | gcloud secrets versions add MONGO_URI --data-file=-
 
-Use these endpoints:
-- Health: {SERVICE_URL}/health
-- Docs: {SERVICE_URL}/docs
-- Tableau CSV: {SERVICE_URL}/tableau/fact_daily.csv
-
-## Current Deployment (Cloud Run)
-
-Service URL:
-- https://inventory-api-610111719715.us-central1.run.app
-
-Quick links:
-- Health: https://inventory-api-610111719715.us-central1.run.app/health
-- Docs: https://inventory-api-610111719715.us-central1.run.app/docs
-- Tableau CSV: https://inventory-api-610111719715.us-central1.run.app/tableau/fact_daily.csv
-
-Update MongoDB URI (Secret Manager):
-```bash
-# Add a new version to the existing secret
-printf "%s" "YOUR_NEW_MONGO_URI" | gcloud secrets versions add MONGO_URI --data-file=-
-# (Re)deploy or roll new revision to pick up changes
+# Redeploy to pick up new secret
 ./deploy.sh
 ```
 
-## Environment, TLS, and MongoDB Atlas
+## API Endpoints
 
-- Cloud Run does NOT read `.env` files. Set env via `--set-env-vars` or Secret Manager.
-- The app uses `certifi` and configures `pymongo` with `tlsCAFile=certifi.where()` to avoid TLS handshake issues.
-- For SRV URIs (`mongodb+srv://`), `dnspython` is used via `pymongo[srv]` (already included).
+### Core Endpoints
+- `GET /` — Basic service information
+- `GET /health` — Health check with MongoDB connectivity and collection counts
+- `GET /docs` — Interactive API documentation (Swagger UI)
 
-Network access:
-- Ensure your Cloud Run service has outbound internet access to Atlas.
-- If you attach a Serverless VPC Connector with egress = “all-traffic”, configure Cloud NAT for public egress; otherwise Atlas won’t be reachable.
-- Easiest: no VPC connector, or egress = “private-ranges-only”.
-- In Atlas, temporarily allow `0.0.0.0/0` to validate connectivity, then restrict to a static egress IP (Cloud NAT) for production.
+### Data Endpoints
+- `GET /tableau/fact_daily.csv` — **Primary endpoint for Tableau Public**
+  - Returns denormalized daily facts as CSV
+  - Query parameters: `start_date`, `end_date`, `category`, `limit`
+  - Joins products, daily_demand, inventory_levels, and reorder_recommendations
 
-Quick checks (CLI):
+### Analytics Endpoints
+- `GET /api/products` — Product catalog with optional category filter
+- `GET /api/categories` — List of all product categories
+- `GET /api/metrics/kpis` — Key performance indicators (fill rate, stockout %, etc.)
+
+### Example API Calls
 
 ```bash
-gcloud run services describe inventory-api --region us-central1 \
-  --format='value(spec.template.metadata.annotations."run.googleapis.com/vpc-access-connector")'
+# Health check
+curl https://inventory-api-610111719715.us-central1.run.app/health
 
-gcloud run services describe inventory-api --region us-central1 \
-  --format='value(spec.template.metadata.annotations."run.googleapis.com/vpc-access-egress")'
+# Get CSV for Tableau with filters
+curl "https://inventory-api-610111719715.us-central1.run.app/tableau/fact_daily.csv?start_date=2024-01-01&end_date=2024-01-31&category=Electronics&limit=1000"
+
+# Get product categories
+curl https://inventory-api-610111719715.us-central1.run.app/api/categories
+
+# Get KPIs for date range
+curl "https://inventory-api-610111719715.us-central1.run.app/api/metrics/kpis?start_date=2024-01-01&end_date=2024-03-31"
 ```
 
-## API Endpoints (summary)
+## Tableau Public Integration
 
-- `GET /` — Basic service info
-- `GET /health` — Health with MongoDB connectivity and collection counts
-- `GET /tableau/fact_daily.csv` — Denormalized daily facts for Tableau
-  - Query params: `start_date`, `end_date`, `category`, `limit`
-- `GET /api/products` — Product catalog (optional `category`)
-- `GET /api/categories` — List of categories
-- `GET /api/metrics/kpis` — KPI calculations (fill rate, stockout %, etc.)
+### Using the CSV Endpoint
+1. **Open Tableau Public**
+2. **Connect to Data** → **Web Data Connector**
+3. **Enter URL**: `https://inventory-api-610111719715.us-central1.run.app/tableau/fact_daily.csv`
+4. **Optional Filters**: Add query parameters for date range, category, or limit
 
-## Security
+### CSV Data Structure
+The `/tableau/fact_daily.csv` endpoint provides denormalized data with:
+- **Date Information**: `date`, `month`
+- **Product Details**: `product_id`, `category`, `price`, `uom`, `lead_time_days`, `safety_stock`
+- **Demand & Inventory**: `demand`, `inventory_level`, `stockout_flag`
+- **Recommendations**: `reorder_point`, `recommended_order_qty`
 
-- Never commit secrets. `.env*` are for local only.
-- On Cloud Run, use Secret Manager for `MONGO_URI`.
-- Use a read-only MongoDB user for analytics/API.
+### Sample Dashboard Elements
+- **KPI Cards**: Fill rate, stockout percentage, total SKUs
+- **Time Series**: Daily demand and inventory levels
+- **Category Analysis**: Performance by product category
+- **Reorder Alerts**: Products requiring restocking
+- **Stockout Analysis**: Frequency and impact of stockouts
+
+## Technical Details
+
+### Environment Configuration
+The application supports flexible environment loading:
+1. `ENV_FILE` environment variable (highest priority)
+2. `ENVIRONMENT=staging` → loads `.env.staging`
+3. Default → loads `.env`
+
+### MongoDB & TLS Configuration
+- Uses `certifi` package for TLS certificate validation
+- Configured with `tlsCAFile=certifi.where()` for MongoDB Atlas
+- Supports both SRV (`mongodb+srv://`) and standard connection strings
+- Uses `pymongo[srv]` for DNS resolution
+
+### Security Considerations
+- **Credentials**: Never commit `.env` files - use Secret Manager for production
+- **Database Access**: Use read-only MongoDB user for analytics
+- **Network Access**: Configure MongoDB Atlas IP allowlist appropriately
+- **TLS**: All connections use TLS encryption
+
+### Performance & Optimization
+- **Indexes**: Ensure MongoDB has indexes on `product_id` and `date` fields
+- **Aggregation**: Uses MongoDB aggregation pipelines for efficient joins
+- **Caching**: Consider adding Redis caching for frequently accessed data
+- **Monitoring**: Use Cloud Run metrics and MongoDB Atlas monitoring
 
 ## Troubleshooting
 
-- TLS handshake errors to Atlas:
-  - Keep `certifi` in requirements (already present)
-  - Ensure outbound internet from Cloud Run (see VPC connector notes)
-  - Verify Atlas network access allowlist
-- Empty CSV:
-  - Confirm date range and data availability in MongoDB
-- Slow queries:
-  - Consider indexes on `product_id`, `date` fields in collections
+### Common Issues
 
-## Tableau Public
+#### TLS Handshake Errors to MongoDB Atlas
+- Ensure `certifi` is in requirements.txt ✓
+- Verify outbound internet access from Cloud Run
+- Check MongoDB Atlas network access allowlist
+- Confirm TLS configuration in connection string
 
-Use the Cloud Run CSV endpoint directly in Tableau Public:
+#### Empty CSV Response
+- Verify date range parameters match data in MongoDB
+- Check MongoDB collections have data for specified date range
+- Validate category names if using category filter
 
-- CSV URL: `{SERVICE_URL}/tableau/fact_daily.csv`
-- Optional filters via query params, e.g.:
-  `{SERVICE_URL}/tableau/fact_daily.csv?start_date=2024-01-01&end_date=2024-01-31&category=Electronics&limit=1000`
+#### Cloud Run Deployment Issues
+- Verify Google Cloud project has billing enabled
+- Check IAM permissions for Cloud Build and Cloud Run
+- Ensure Secret Manager secret `MONGO_URI` exists and is accessible
+
+#### MongoDB Connection Issues
+- Test connection string format and credentials
+- Verify MongoDB Atlas cluster is running
+- Check IP allowlist includes Cloud Run egress IPs (or use 0.0.0.0/0 temporarily)
+
+### Debug Commands
+
+```bash
+# Check Cloud Run service status
+gcloud run services describe inventory-api --region us-central1
+
+# View Cloud Run logs
+gcloud logs tail --service inventory-api
+
+# Test Secret Manager access
+gcloud secrets versions access latest --secret="MONGO_URI"
+
+# Check service health
+curl https://inventory-api-610111719715.us-central1.run.app/health
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Commit changes (`git commit -am 'Add your feature'`)
+4. Push to branch (`git push origin feature/your-feature`)
+5. Create a Pull Request
+
+## License
+
+This project is for educational and demonstration purposes. Please ensure you comply with all service terms when using MongoDB Atlas, Google Cloud Run, and Tableau Public.
 
 ---
 
-For more detailed endpoint docs and examples, see `API.md`.
+For detailed API documentation with examples, see [API.md](API.md).

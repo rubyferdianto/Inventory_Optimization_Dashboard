@@ -20,9 +20,7 @@ if env_file and os.path.exists(env_file):
     load_dotenv(env_file)
 else:
     env = os.environ.get("ENVIRONMENT", "").lower()
-    if env == "production" and os.path.exists(".env.production"):
-        load_dotenv(".env.production")
-    elif env == "staging" and os.path.exists(".env.staging"):
+    if env == "staging" and os.path.exists(".env.staging"):
         load_dotenv(".env.staging")
     else:
         load_dotenv()
